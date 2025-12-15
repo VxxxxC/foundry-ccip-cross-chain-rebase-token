@@ -46,6 +46,19 @@ contract RebaseToken is ERC20("RebaseToken", "RBTK") {
     }
 
     /**
+     * @notice Burn the user tokens when they withdraw from the vault
+     * @param _from The user address to burn the rebase token from
+     * @param _amount The amount of rebase token to burn
+     */
+    function burn(address _from, uint256 _amount) external {
+        if (_amount == type(uint256).max) {
+            _amount = this.balanceOf(_from);
+        }
+        _mintAccruedInterest(_from);
+        _burn(_from, _amount);
+    }
+
+    /**
      * @notice Calculate the balance for the user including the interest that has accumulated since last updated timestamp
      * @notice (principal balance) + some interest that has accrued
      * @param _user The user the calculate the balance for
@@ -81,13 +94,21 @@ contract RebaseToken is ERC20("RebaseToken", "RBTK") {
         linearInterest = PRECISION_FACTOR + (s_userInterestRate[_user] * timeElapsed);
     }
 
+    /**
+     * @notice Mint the accrued interest to user since the last time they interacted with the protocol (e.g. mint, burn, transfer)
+     * @param _user The user to mint the accrued interest to
+     */
     function _mintAccruedInterest(address _user) internal {
         // [1] Find their current balance of rebase tokens that have minted to user -> principal balance
+        uint256 principalBalance = super.balanceOf(_user);
         // [2] Calculate their current balance including interest -> balanceOf
+        uint256 currentBalanceWithInterest = this.balanceOf(_user);
         // Calculate the number of tokens that need to be minted to user -> [2] - [1]
-        // Call _mint to mint the tokens to the user
+        uint256 balanceIncrease = currentBalanceWithInterest - principalBalance;
         // Set the user last updated timestamp
         s_userLastUpdatedTimestamp[_user] = block.timestamp;
+        // Call _mint to mint the tokens to the user
+        _mint(_user, balanceIncrease);
     }
 
     /**
