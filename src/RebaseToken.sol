@@ -15,23 +15,88 @@ contract RebaseToken is ERC20("RebaseToken", "RBTK") {
     // STATE VARIABLES
     uint256 private constant PRECISION_FACTOR = 1e18;
     uint256 private s_interestRate = 5e10; // 5% initial interest rate, scaled by 1e10
-    mapping(address => uint256) public s_userInterestRate;
-    mapping(address => uint256) public s_userLastUpdatedTimestamp;
+    mapping(address => uint256) private s_userInterestRate;
+    mapping(address => uint256) private s_userLastUpdatedTimestamp;
 
     // ERRORS
-    error RebaseToken__InterestRateCanOnlyDecrease(uint256 currentRate, uint256 newRate);
+    error RebaseToken__InterestRateCanOnlyDecrease(
+        uint256 currentRate,
+        uint256 newRate
+    );
 
     // EVENTS
     event InterestRateSet(uint256 newInterestRate);
 
     constructor() {}
 
+    /**
+     * @notice Transfer tokens from user to other recipient
+     * @param _recipient The address of the recipient
+     * @param _amount The amount of tokens to transfer
+     * @return bool return true if the transfer was successful
+     */
+    function transfer(
+        address _recipient,
+        uint256 _amount
+    ) public override returns (bool) {
+        _mintAccruedInterest(msg.sender);
+        _mintAccruedInterest(_recipient);
+
+        if (_amount == type(uint256).max) {
+            _amount = balanceOf(msg.sender);
+        }
+
+        if (balanceOf(_recipient) == 0) {
+            s_userInterestRate[_recipient] = s_userInterestRate[msg.sender];
+        }
+
+        return super.transfer(_recipient, _amount);
+    }
+
+    /**
+     * @notice Transfer tokens from sender to recipient
+     * @param _sender The address of the sender
+     * @param _recipient The address of the recipient
+     * @param _amount The amount of tokens to transfer
+     * @return bool return true if the transfer was successful
+     */
+    function transferFrom(
+        address _sender,
+        address _recipient,
+        uint256 _amount
+    ) public override returns (bool) {
+        _mintAccruedInterest(_sender);
+        _mintAccruedInterest(_recipient);
+
+        if (_amount == type(uint256).max) {
+            _amount = balanceOf(_sender);
+        }
+
+        if (balanceOf(_recipient) == 0) {
+            s_userInterestRate[_recipient] = s_userInterestRate[_sender];
+        }
+
+        return super.transferFrom(_sender, _recipient, _amount);
+    }
+
     function setInterestRate(uint256 newInterestRate) external {
         if (newInterestRate < s_interestRate) {
-            revert RebaseToken__InterestRateCanOnlyDecrease(s_interestRate, newInterestRate);
+            revert RebaseToken__InterestRateCanOnlyDecrease(
+                s_interestRate,
+                newInterestRate
+            );
         }
         s_interestRate = newInterestRate;
         emit InterestRateSet(newInterestRate);
+    }
+
+    /**
+     * @notice Get the principal balance of the user. This is the number of tokens that have currently been minted to the user, not including any interest that has accrued since the last time the user interacted with the protocol.
+     * @param _user The address of the user
+     * @return The principal balance of the user
+     */
+    function principalBalanceOf(address _user) external view returns (uint256) {
+        return super.balanceOf(_user);
     }
 
     /**
@@ -67,7 +132,9 @@ contract RebaseToken is ERC20("RebaseToken", "RBTK") {
     function balanceOf(address _user) public view override returns (uint256) {
         // get the user current principal balance (the number of tokens have been minted to user)
         // multiply the principal balance by interest rate that has accumulated since last updated timestamp
-        return super.balanceOf(_user) * _calculateUserAccumulatedInterestSinceLastUpdated(_user);
+        return
+            super.balanceOf(_user) *
+            _calculateUserAccumulatedInterestSinceLastUpdated(_user);
     }
 
     /**
@@ -75,11 +142,9 @@ contract RebaseToken is ERC20("RebaseToken", "RBTK") {
      * @param _user The user to calculate the accumulated interest for
      * @return linearInterest The accumulated interest multiplier
      */
-    function _calculateUserAccumulatedInterestSinceLastUpdated(address _user)
-        internal
-        view
-        returns (uint256 linearInterest)
-    {
+    function _calculateUserAccumulatedInterestSinceLastUpdated(
+        address _user
+    ) internal view returns (uint256 linearInterest) {
         // we need to calculate the interest that has accumulated since the last updated
         // this will going to be linear growth with time
         // 1. Calculate the time since last updated
@@ -90,8 +155,11 @@ contract RebaseToken is ERC20("RebaseToken", "RBTK") {
         // interest rate: 0.5 token per seconds
         // time elapsed: 2 seconds
         // total = 10 + 10 * 0.5 * 2 = 20 tokens
-        uint256 timeElapsed = block.timestamp - s_userLastUpdatedTimestamp[_user];
-        linearInterest = PRECISION_FACTOR + (s_userInterestRate[_user] * timeElapsed);
+        uint256 timeElapsed = block.timestamp -
+            s_userLastUpdatedTimestamp[_user];
+        linearInterest =
+            PRECISION_FACTOR +
+            (s_userInterestRate[_user] * timeElapsed);
     }
 
     /**
@@ -102,7 +170,7 @@ contract RebaseToken is ERC20("RebaseToken", "RBTK") {
         // [1] Find their current balance of rebase tokens that have minted to user -> principal balance
         uint256 principalBalance = super.balanceOf(_user);
         // [2] Calculate their current balance including interest -> balanceOf
-        uint256 currentBalanceWithInterest = this.balanceOf(_user);
+        uint256 currentBalanceWithInterest = balanceOf(_user);
         // Calculate the number of tokens that need to be minted to user -> [2] - [1]
         uint256 balanceIncrease = currentBalanceWithInterest - principalBalance;
         // Set the user last updated timestamp
@@ -117,7 +185,17 @@ contract RebaseToken is ERC20("RebaseToken", "RBTK") {
      * @param _user The address of the user
      * @return The interest rate of the user
      */
-    function getUserInterestRate(address _user) external view returns (uint256) {
+    function getUserInterestRate(
+        address _user
+    ) external view returns (uint256) {
         return s_userInterestRate[_user];
+    }
+
+    /**
+     * @notice Get the global interest rate of the contract that is currently set. Any future depositors will receive this interest rate.
+     * @return uint256 global interest rate
+     */
+    function getInterestRate() external view returns (uint256) {
+        return s_interestRate;
     }
 }
