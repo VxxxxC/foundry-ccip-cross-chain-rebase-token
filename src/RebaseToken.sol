@@ -2,6 +2,7 @@
 
 pragma solidity ^0.8.24;
 
+import {console} from "forge-std/console.sol";
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
@@ -15,9 +16,9 @@ import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
  */
 contract RebaseToken is ERC20("RebaseToken", "RBTK"), Ownable(msg.sender), AccessControl {
     // STATE VARIABLES
-    uint256 private constant PRECISION_FACTOR = 1e18;
+    uint256 private constant PRECISION_FACTOR = 1e18; // 1e18 = 1.0 in precision factor
     bytes32 private constant MINT_AND_BURN_ROLE = keccak256("MINT_AND_BURN_ROLE");
-    uint256 private s_interestRate = 5e10; // 5% initial interest rate, scaled by 1e10
+    uint256 private s_interestRate = 5e10; // 5e10 = 0.00000005 tokens per second per token deposited
     mapping(address => uint256) private s_userInterestRate;
     mapping(address => uint256) private s_userLastUpdatedTimestamp;
 
@@ -122,7 +123,16 @@ contract RebaseToken is ERC20("RebaseToken", "RBTK"), Ownable(msg.sender), Acces
     function balanceOf(address _user) public view override returns (uint256) {
         // get the user current principal balance (the number of tokens have been minted to user)
         // multiply the principal balance by interest rate that has accumulated since last updated timestamp
-        return super.balanceOf(_user) * _calculateUserAccumulatedInterestSinceLastUpdated(_user);
+        uint256 principal = super.balanceOf(_user);
+        console.log("Principal:", principal);
+        uint256 multiplier = _calculateUserAccumulatedInterestSinceLastUpdated(_user);
+        console.log("Multiplier:", multiplier);
+
+        if (multiplier == 1) {
+            return principal;
+        }
+
+        return (principal * multiplier / PRECISION_FACTOR);
     }
 
     /**
@@ -170,7 +180,7 @@ contract RebaseToken is ERC20("RebaseToken", "RBTK"), Ownable(msg.sender), Acces
      *
      * @notice Get the interest rate for user
      * @param _user The address of the user
-     * @return The interest rate of the user
+     * @return uint256 The interest rate of the user
      */
     function getUserInterestRate(address _user) external view returns (uint256) {
         return s_userInterestRate[_user];
