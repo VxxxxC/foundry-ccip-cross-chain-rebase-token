@@ -4,9 +4,22 @@ out = "out"
 libs = ["lib"]
 
 remappings = [
+    '@forge-std/=lib/forge-std/src/',
     '@openzeppelin/=lib/openzeppelin-contracts/',
     '@ccip=lib/ccip/',
     '@chainlink-local/=lib/chainlink-local/',
 ]
+
+[fuzz]
+runs = 256
+
+[invariant]
+runs = 256
+depth = 500
+fail_on_revert = true
+
+[fmt]
+tab_width = 2
+bracket_spacing = true
 
 # See more config options https://github.com/foundry-rs/foundry/blob/master/crates/config/README.md#all-options
