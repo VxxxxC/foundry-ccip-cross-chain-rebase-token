@@ -7,6 +7,8 @@ import { console } from "forge-std/console.sol";
 import { RebaseToken } from "../src/RebaseToken.sol";
 import { Vault } from "../src/Vault.sol";
 import { IRebaseToken } from "../src/interfaces/IRebaseToken.sol";
+import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
+import { IAccessControl } from "@openzeppelin/contracts/access/AccessControl.sol";
 
 contract RebaseTokenTest is Test {
   RebaseToken private rebaseToken;
@@ -14,7 +16,6 @@ contract RebaseTokenTest is Test {
 
   address public owner = makeAddr("owner");
   address public user = makeAddr("user");
-  address public anotherUser = makeAddr("anotherUser");
 
   error RebaseTokenTest__DepositFailed();
 
@@ -34,7 +35,7 @@ contract RebaseTokenTest is Test {
   }
 
   function addRewardsToVault(uint256 rewardAmount) public {
-    (bool success, ) = payable(address(vault)).call{value: rewardAmount}("");
+    (bool success,) = payable(address(vault)).call{ value: rewardAmount }("");
   }
 
   function testDepositLinear(uint256 amount) public {
@@ -123,7 +124,7 @@ contract RebaseTokenTest is Test {
     // 2b. add rewards to the vault to simulate interest
     vm.deal(owner, balanceAfterTime - deposit);
     vm.prank(owner);
-    addRewardsToVault( balanceAfterTime - deposit );
+    addRewardsToVault(balanceAfterTime - deposit);
 
     // 3. redeem
     vm.prank(user);
@@ -134,5 +135,75 @@ contract RebaseTokenTest is Test {
 
     assertEq(ethBalance, balanceAfterTime);
     assertGt(ethBalance, deposit);
+  }
+
+  function testTransfer(uint256 amount, uint256 amountToSend) public {
+    amount = bound(amount, 1e5 + 1e5, type(uint96).max); // 1e5 + 1e5 to ensure at least 0.0001 ETH
+    amountToSend = bound(amountToSend, 1e5, amount - 1e5); //  [1e5, amount - 1e5] to ensure at least 0.0001 ETH remains
+
+    // 1. deposit
+    vm.deal(user, amount);
+    vm.prank(user);
+    vault.deposit{ value: amount }();
+
+    // 2. make another user
+    address anotherUser = makeAddr("anotherUser");
+
+    // 3. check both initial balances
+    uint256 initialBalanceUser = rebaseToken.balanceOf(user);
+    uint256 initialBalanceAnotherUser = rebaseToken.balanceOf(anotherUser);
+    assertEq(initialBalanceUser, amount);
+    assertEq(initialBalanceAnotherUser, 0);
+
+    // 4. reduce the interest rate b owner
+    vm.prank(owner);
+    rebaseToken.setInterestRate(4e10); // 4e10 = 0.0000000004 tokens per second, default is 5e10
+
+    // 5. transfer
+    console.log("Deposit amount:", amount);
+    console.log("Amount to send:", amountToSend);
+    vm.prank(user);
+    rebaseToken.transfer(anotherUser, amountToSend);
+
+    // 6. check both final balances
+    uint256 finalBalanceUser = rebaseToken.balanceOf(user);
+    uint256 finalBalanceAnotherUser = rebaseToken.balanceOf(anotherUser);
+
+    assertEq(finalBalanceUser, initialBalanceUser - amountToSend); // exact equal to initial - sent
+    assertEq(finalBalanceAnotherUser, amountToSend);
+    assertApproxEqAbs(finalBalanceAnotherUser, initialBalanceAnotherUser, amountToSend); // absolute approx equal to amountToSend
+
+    // check the user interest rate has been inherited
+    assertEq(rebaseToken.getUserInterestRate(user), 5e10);
+    assertEq(rebaseToken.getUserInterestRate(anotherUser), 5e10);
+  }
+
+  function testCannotSetInterestRate(uint256 newInterestRate) public {
+    vm.prank(user);
+    vm.expectPartialRevert(bytes4(Ownable.OwnableUnauthorizedAccount.selector));
+    rebaseToken.setInterestRate(newInterestRate);
+  }
+
+  function testCannotCallMintAndBurn(uint256 amountToMint, uint256 amountToBurn) public {
+    vm.prank(user);
+    vm.expectPartialRevert(bytes4(IAccessControl.AccessControlUnauthorizedAccount.selector));
+    rebaseToken.mint(user, amountToMint);
+
+    vm.prank(user);
+    vm.expectPartialRevert(bytes4(IAccessControl.AccessControlUnauthorizedAccount.selector));
+    rebaseToken.burn(user, amountToBurn);
+  }
+
+  function testPrincipalAmount(uint256 amount) public {
+    amount = bound(amount, 1e5, type(uint96).max);
+    // 1. deposit
+    vm.deal(user, amount);
+    vm.prank(user);
+    vault.deposit{ value: amount }();
+    assertEq(rebaseToken.principalBalanceOf(user), amount);
+
+    // 2. warp time and check principal balance again
+    vm.warp(block.timestamp + 1 hours);
+    assertEq(rebaseToken.principalBalanceOf(user), amount);
   }
 }

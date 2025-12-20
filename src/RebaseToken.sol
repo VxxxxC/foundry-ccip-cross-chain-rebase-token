@@ -74,7 +74,7 @@ contract RebaseToken is ERC20("RebaseToken", "RBTK"), Ownable(msg.sender), Acces
   }
 
   function setInterestRate(uint256 newInterestRate) external onlyOwner {
-    if (newInterestRate < s_interestRate) {
+    if (newInterestRate > s_interestRate) {
       revert RebaseToken__InterestRateCanOnlyDecrease(s_interestRate, newInterestRate);
     }
     s_interestRate = newInterestRate;
@@ -121,9 +121,7 @@ contract RebaseToken is ERC20("RebaseToken", "RBTK"), Ownable(msg.sender), Acces
     // get the user current principal balance (the number of tokens have been minted to user)
     // multiply the principal balance by interest rate that has accumulated since last updated timestamp
     uint256 principal = super.balanceOf(_user);
-    console.log("Principal:", principal);
     uint256 multiplier = _calculateUserAccumulatedInterestSinceLastUpdated(_user);
-    console.log("Multiplier:", multiplier);
 
     if (multiplier == 1) {
       return principal;
