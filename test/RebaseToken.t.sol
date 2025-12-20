@@ -22,8 +22,8 @@ contract RebaseTokenTest is Test {
   function setUp() public {
     vm.startPrank(owner);
     vm.deal(owner, 1e18); // fund the owner with 1 ETH
-    rebaseToken = new RebaseToken();
-    vault = new Vault(address(IRebaseToken(address(rebaseToken))));
+    rebaseToken = new RebaseToken(); // call RebaseToken constructor
+    vault = new Vault(address(IRebaseToken(address(rebaseToken)))); // pass rebase token address to vault constructor , cast to IRebaseToken interface
     rebaseToken.grantMintAndBurnRole(address(vault));
 
     (bool success,) = payable(address(vault)).call{ value: 1e18 }(""); // fund the vault with 1 ETH via fallback
@@ -205,5 +205,20 @@ contract RebaseTokenTest is Test {
     // 2. warp time and check principal balance again
     vm.warp(block.timestamp + 1 hours);
     assertEq(rebaseToken.principalBalanceOf(user), amount);
+  }
+
+  function testGetRebaseTokenAddress() public view {
+    assertEq(vault.getRebaseTokenAddress(), address(rebaseToken));
+  }
+
+  function testInterestRateCanOnlyDecrease(uint256 newInterestRate) public {
+    uint256 initialRate = rebaseToken.getInterestRate();
+    newInterestRate = bound(newInterestRate, initialRate + 1, type(uint96).max);
+    vm.prank(owner);
+    vm.expectPartialRevert(bytes4(RebaseToken.RebaseToken__InterestRateCanOnlyDecrease.selector));
+    rebaseToken.setInterestRate(newInterestRate);
+
+    uint256 finalRate = rebaseToken.getInterestRate();
+    assertEq(finalRate, initialRate);
   }
 }
