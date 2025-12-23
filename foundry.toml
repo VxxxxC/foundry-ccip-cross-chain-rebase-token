@@ -6,7 +6,7 @@ libs = ["lib"]
 remappings = [
     '@forge-std/=lib/forge-std/src/',
     '@openzeppelin/=lib/openzeppelin-contracts/',
-    '@ccip=lib/ccip/',
+    '@chainlink-ccip=lib/chainlink-ccip/',
     '@chainlink-local/=lib/chainlink-local/',
 ]
 
