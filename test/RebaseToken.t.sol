@@ -34,11 +34,15 @@ contract RebaseTokenTest is Test {
     vm.stopPrank();
   }
 
-  function addRewardsToVault(uint256 rewardAmount) public {
+  function addRewardsToVault(
+    uint256 rewardAmount
+  ) public {
     (bool success,) = payable(address(vault)).call{ value: rewardAmount }("");
   }
 
-  function testDepositLinear(uint256 amount) public {
+  function testDepositLinear(
+    uint256 amount
+  ) public {
     vm.assume(amount > 1e4); // minimum deposit amount from fuzzy input
     amount = bound(amount, 1e4, type(uint96).max); // bound the fuzzy input to the amount from 0.01 ETH to max uint96)
     // 1. deposit
@@ -71,7 +75,9 @@ contract RebaseTokenTest is Test {
     vm.stopPrank();
   }
 
-  function testRedeemStraightAway(uint256 amount) public {
+  function testRedeemStraightAway(
+    uint256 amount
+  ) public {
     amount = bound(amount, 1e4, type(uint96).max);
     // 1. deposit
     vm.startPrank(user);
@@ -88,7 +94,9 @@ contract RebaseTokenTest is Test {
     vm.stopPrank();
   }
 
-  function testRedeemByAmount(uint256 amount) public {
+  function testRedeemByAmount(
+    uint256 amount
+  ) public {
     amount = bound(amount, 1e4, type(uint96).max);
     // 1. deposit
     vm.startPrank(user);
@@ -105,7 +113,10 @@ contract RebaseTokenTest is Test {
     vm.stopPrank();
   }
 
-  function testRedeemAfterTimePassed(uint256 deposit, uint256 time) public {
+  function testRedeemAfterTimePassed(
+    uint256 deposit,
+    uint256 time
+  ) public {
     time = bound(time, 1000, type(uint96).max);
     deposit = bound(deposit, 1e5, type(uint96).max);
     console.log("Deposit amount:", deposit);
@@ -137,7 +148,10 @@ contract RebaseTokenTest is Test {
     assertGt(ethBalance, deposit);
   }
 
-  function testTransfer(uint256 amount, uint256 amountToSend) public {
+  function testTransfer(
+    uint256 amount,
+    uint256 amountToSend
+  ) public {
     amount = bound(amount, 1e5 + 1e5, type(uint96).max); // 1e5 + 1e5 to ensure at least 0.0001 ETH
     amountToSend = bound(amountToSend, 1e5, amount - 1e5); //  [1e5, amount - 1e5] to ensure at least 0.0001 ETH remains
 
@@ -178,13 +192,18 @@ contract RebaseTokenTest is Test {
     assertEq(rebaseToken.getUserInterestRate(anotherUser), 5e10);
   }
 
-  function testCannotSetInterestRate(uint256 newInterestRate) public {
+  function testCannotSetInterestRate(
+    uint256 newInterestRate
+  ) public {
     vm.prank(user);
     vm.expectPartialRevert(bytes4(Ownable.OwnableUnauthorizedAccount.selector));
     rebaseToken.setInterestRate(newInterestRate);
   }
 
-  function testCannotCallMintAndBurn(uint256 amountToMint, uint256 amountToBurn) public {
+  function testCannotCallMintAndBurn(
+    uint256 amountToMint,
+    uint256 amountToBurn
+  ) public {
     vm.prank(user);
     vm.expectPartialRevert(bytes4(IAccessControl.AccessControlUnauthorizedAccount.selector));
     rebaseToken.mint(user, amountToMint, rebaseToken.getInterestRate());
@@ -194,7 +213,9 @@ contract RebaseTokenTest is Test {
     rebaseToken.burn(user, amountToBurn);
   }
 
-  function testPrincipalAmount(uint256 amount) public {
+  function testPrincipalAmount(
+    uint256 amount
+  ) public {
     amount = bound(amount, 1e5, type(uint96).max);
     // 1. deposit
     vm.deal(user, amount);
@@ -211,7 +232,9 @@ contract RebaseTokenTest is Test {
     assertEq(vault.getRebaseTokenAddress(), address(rebaseToken));
   }
 
-  function testInterestRateCanOnlyDecrease(uint256 newInterestRate) public {
+  function testInterestRateCanOnlyDecrease(
+    uint256 newInterestRate
+  ) public {
     uint256 initialRate = rebaseToken.getInterestRate();
     newInterestRate = bound(newInterestRate, initialRate + 1, type(uint96).max);
     vm.prank(owner);
@@ -227,7 +250,10 @@ contract RebaseTokenTest is Test {
   /**
    * @notice Test transferFrom function (ERC20 approval flow)
    */
-  function testTransferFrom(uint256 amount, uint256 amountToSend) public {
+  function testTransferFrom(
+    uint256 amount,
+    uint256 amountToSend
+  ) public {
     amount = bound(amount, 1e5 + 1e5, type(uint96).max);
     amountToSend = bound(amountToSend, 1e5, amount - 1e5);
 
@@ -261,7 +287,9 @@ contract RebaseTokenTest is Test {
   /**
    * @notice Test transferFrom with type(uint256).max to transfer all tokens
    */
-  function testTransferFromMaxAmount(uint256 amount) public {
+  function testTransferFromMaxAmount(
+    uint256 amount
+  ) public {
     amount = bound(amount, 1e5, type(uint96).max);
 
     // 1. deposit as user
@@ -287,7 +315,9 @@ contract RebaseTokenTest is Test {
   /**
    * @notice Test transfer with type(uint256).max to transfer all tokens
    */
-  function testTransferMaxAmount(uint256 amount) public {
+  function testTransferMaxAmount(
+    uint256 amount
+  ) public {
     amount = bound(amount, 1e5, type(uint96).max);
 
     // 1. deposit as user
@@ -309,7 +339,9 @@ contract RebaseTokenTest is Test {
   /**
    * @notice Test transferFrom inherits sender's interest rate when recipient has no balance
    */
-  function testTransferFromInheritsInterestRate(uint256 amount) public {
+  function testTransferFromInheritsInterestRate(
+    uint256 amount
+  ) public {
     amount = bound(amount, 1e5, type(uint96).max);
 
     // 1. deposit
@@ -334,7 +366,9 @@ contract RebaseTokenTest is Test {
   /**
    * @notice Test transferFrom when recipient already has tokens (keeps their rate)
    */
-  function testTransferFromRecipientKeepsOwnRate(uint256 amount) public {
+  function testTransferFromRecipientKeepsOwnRate(
+    uint256 amount
+  ) public {
     amount = bound(amount, 1e6, type(uint96).max);
 
     // 1. deposit for user
@@ -369,7 +403,9 @@ contract RebaseTokenTest is Test {
   /**
    * @notice Test multiple deposits with different interest rates
    */
-  function testMultipleDepositsWithRateChanges(uint256 amount) public {
+  function testMultipleDepositsWithRateChanges(
+    uint256 amount
+  ) public {
     amount = bound(amount, 1e5, type(uint96).max / 2);
 
     // 1. first deposit at high rate
@@ -417,7 +453,9 @@ contract RebaseTokenTest is Test {
   /**
    * @notice Test transfer to self
    */
-  function testTransferToSelf(uint256 amount) public {
+  function testTransferToSelf(
+    uint256 amount
+  ) public {
     amount = bound(amount, 1e5, type(uint96).max);
 
     // 1. deposit
@@ -446,7 +484,10 @@ contract RebaseTokenTest is Test {
   /**
    * @notice Test that interest accrues correctly after time passes then transfers
    */
-  function testTransferAfterInterestAccrual(uint256 amount, uint256 time) public {
+  function testTransferAfterInterestAccrual(
+    uint256 amount,
+    uint256 time
+  ) public {
     amount = bound(amount, 1e5, type(uint96).max);
     time = bound(time, 1 hours, 30 days);
 
@@ -531,7 +572,10 @@ contract RebaseTokenTest is Test {
   /**
    * @notice Test principal balance doesn't change with time (only actual balance changes)
    */
-  function testPrincipalVsActualBalance(uint256 amount, uint256 time) public {
+  function testPrincipalVsActualBalance(
+    uint256 amount,
+    uint256 time
+  ) public {
     amount = bound(amount, 1e5, type(uint96).max);
     time = bound(time, 1 hours, 30 days);
 
@@ -565,7 +609,9 @@ contract RebaseTokenTest is Test {
   /**
    * @notice Test events are emitted correctly on deposit
    */
-  function testDepositEmitsEvent(uint256 amount) public {
+  function testDepositEmitsEvent(
+    uint256 amount
+  ) public {
     amount = bound(amount, 1e5, type(uint96).max);
 
     vm.deal(user, amount);
@@ -580,7 +626,9 @@ contract RebaseTokenTest is Test {
   /**
    * @notice Test events are emitted correctly on redeem
    */
-  function testRedeemEmitsEvent(uint256 amount) public {
+  function testRedeemEmitsEvent(
+    uint256 amount
+  ) public {
     amount = bound(amount, 1e5, type(uint96).max);
 
     vm.deal(user, amount);

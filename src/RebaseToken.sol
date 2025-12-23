@@ -36,7 +36,10 @@ contract RebaseToken is ERC20("RebaseToken", "RBTK"), Ownable(msg.sender), Acces
    * @param _amount The amount of tokens to transfer
    * @return bool return true if the transfer was successful
    */
-  function transfer(address _recipient, uint256 _amount) public override returns (bool) {
+  function transfer(
+    address _recipient,
+    uint256 _amount
+  ) public override returns (bool) {
     _mintAccruedInterest(msg.sender);
     _mintAccruedInterest(_recipient);
 
@@ -58,7 +61,11 @@ contract RebaseToken is ERC20("RebaseToken", "RBTK"), Ownable(msg.sender), Acces
    * @param _amount The amount of tokens to transfer
    * @return bool return true if the transfer was successful
    */
-  function transferFrom(address _sender, address _recipient, uint256 _amount) public override returns (bool) {
+  function transferFrom(
+    address _sender,
+    address _recipient,
+    uint256 _amount
+  ) public override returns (bool) {
     _mintAccruedInterest(_sender);
     _mintAccruedInterest(_recipient);
 
@@ -73,7 +80,9 @@ contract RebaseToken is ERC20("RebaseToken", "RBTK"), Ownable(msg.sender), Acces
     return super.transferFrom(_sender, _recipient, _amount);
   }
 
-  function setInterestRate(uint256 newInterestRate) external onlyOwner {
+  function setInterestRate(
+    uint256 newInterestRate
+  ) external onlyOwner {
     if (newInterestRate > s_interestRate) {
       revert RebaseToken__InterestRateCanOnlyDecrease(s_interestRate, newInterestRate);
     }
@@ -86,7 +95,9 @@ contract RebaseToken is ERC20("RebaseToken", "RBTK"), Ownable(msg.sender), Acces
    * @param _user The address of the user
    * @return The principal balance of the user
    */
-  function principalBalanceOf(address _user) external view returns (uint256) {
+  function principalBalanceOf(
+    address _user
+  ) external view returns (uint256) {
     return super.balanceOf(_user);
   }
 
@@ -95,7 +106,11 @@ contract RebaseToken is ERC20("RebaseToken", "RBTK"), Ownable(msg.sender), Acces
    * @param _to The user address to mint the rebase token to
    * @param _amount The amount of rebase token to mint
    */
-  function mint(address _to, uint256 _amount, uint256 _userInterestRate) external onlyRole(MINT_AND_BURN_ROLE) {
+  function mint(
+    address _to,
+    uint256 _amount,
+    uint256 _userInterestRate
+  ) external onlyRole(MINT_AND_BURN_ROLE) {
     _mintAccruedInterest(_to);
     s_userInterestRate[_to] = _userInterestRate;
     _mint(_to, _amount);
@@ -106,7 +121,10 @@ contract RebaseToken is ERC20("RebaseToken", "RBTK"), Ownable(msg.sender), Acces
    * @param _from The user address to burn the rebase token from
    * @param _amount The amount of rebase token to burn
    */
-  function burn(address _from, uint256 _amount) external onlyRole(MINT_AND_BURN_ROLE) {
+  function burn(
+    address _from,
+    uint256 _amount
+  ) external onlyRole(MINT_AND_BURN_ROLE) {
     _mintAccruedInterest(_from);
     _burn(_from, _amount);
   }
@@ -117,7 +135,9 @@ contract RebaseToken is ERC20("RebaseToken", "RBTK"), Ownable(msg.sender), Acces
    * @param _user The user the calculate the balance for
    * @return The balance of the user including the interest that has accumulated since last updated timestamp
    */
-  function balanceOf(address _user) public view override returns (uint256) {
+  function balanceOf(
+    address _user
+  ) public view override returns (uint256) {
     // get the user current principal balance (the number of tokens have been minted to user)
     // multiply the principal balance by interest rate that has accumulated since last updated timestamp
     uint256 principal = super.balanceOf(_user);
@@ -135,11 +155,9 @@ contract RebaseToken is ERC20("RebaseToken", "RBTK"), Ownable(msg.sender), Acces
    * @param _user The user to calculate the accumulated interest for
    * @return linearInterest The accumulated interest multiplier
    */
-  function _calculateUserAccumulatedInterestSinceLastUpdated(address _user)
-    internal
-    view
-    returns (uint256 linearInterest)
-  {
+  function _calculateUserAccumulatedInterestSinceLastUpdated(
+    address _user
+  ) internal view returns (uint256 linearInterest) {
     // we need to calculate the interest that has accumulated since the last updated
     // this will going to be linear growth with time
     // 1. Calculate the time since last updated
@@ -158,7 +176,9 @@ contract RebaseToken is ERC20("RebaseToken", "RBTK"), Ownable(msg.sender), Acces
    * @notice Mint the accrued interest to user since the last time they interacted with the protocol (e.g. mint, burn, transfer)
    * @param _user The user to mint the accrued interest to
    */
-  function _mintAccruedInterest(address _user) internal {
+  function _mintAccruedInterest(
+    address _user
+  ) internal {
     // [1] Find their current balance of rebase tokens that have minted to user -> principal balance
     uint256 principalBalance = super.balanceOf(_user);
     // [2] Calculate their current balance including interest -> balanceOf
@@ -177,7 +197,9 @@ contract RebaseToken is ERC20("RebaseToken", "RBTK"), Ownable(msg.sender), Acces
    * @param _user The address of the user
    * @return uint256 The interest rate of the user
    */
-  function getUserInterestRate(address _user) external view returns (uint256) {
+  function getUserInterestRate(
+    address _user
+  ) external view returns (uint256) {
     return s_userInterestRate[_user];
   }
 
@@ -189,7 +211,9 @@ contract RebaseToken is ERC20("RebaseToken", "RBTK"), Ownable(msg.sender), Acces
     return s_interestRate;
   }
 
-  function grantMintAndBurnRole(address _account) external onlyOwner {
+  function grantMintAndBurnRole(
+    address _account
+  ) external onlyOwner {
     _grantRole(MINT_AND_BURN_ROLE, _account);
   }
 }

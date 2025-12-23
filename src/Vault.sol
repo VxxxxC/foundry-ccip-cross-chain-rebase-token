@@ -20,7 +20,9 @@ contract Vault {
   // ERRORS
   error Vault__RedeemFailed();
 
-  constructor(IRebaseToken _rebaseToken) {
+  constructor(
+    IRebaseToken _rebaseToken
+  ) {
     i_rebaseToken = _rebaseToken;
   }
 
@@ -40,7 +42,9 @@ contract Vault {
    * @notice Allow users to redeem their rebase tokens for ETH
    * @param _amount The amount of rebase tokens to redeem
    */
-  function redeem(uint256 _amount) external {
+  function redeem(
+    uint256 _amount
+  ) external {
     if (_amount == type(uint256).max) {
       _amount = i_rebaseToken.balanceOf(msg.sender);
     }

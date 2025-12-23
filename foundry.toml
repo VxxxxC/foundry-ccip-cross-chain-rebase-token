@@ -21,5 +21,7 @@ fail_on_revert = true
 [fmt]
 tab_width = 2
 bracket_spacing = true
+single_line_statement_blocks = "preserve"
+multiline_func_header = "params_first"
 
 # See more config options https://github.com/foundry-rs/foundry/blob/master/crates/config/README.md#all-options
