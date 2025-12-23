@@ -187,7 +187,7 @@ contract RebaseTokenTest is Test {
   function testCannotCallMintAndBurn(uint256 amountToMint, uint256 amountToBurn) public {
     vm.prank(user);
     vm.expectPartialRevert(bytes4(IAccessControl.AccessControlUnauthorizedAccount.selector));
-    rebaseToken.mint(user, amountToMint);
+    rebaseToken.mint(user, amountToMint, rebaseToken.getInterestRate());
 
     vm.prank(user);
     vm.expectPartialRevert(bytes4(IAccessControl.AccessControlUnauthorizedAccount.selector));
