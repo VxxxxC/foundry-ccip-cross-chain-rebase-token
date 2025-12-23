@@ -20,8 +20,8 @@ contract Vault {
   // ERRORS
   error Vault__RedeemFailed();
 
-  constructor(address _rebaseToken) {
-    i_rebaseToken = IRebaseToken(_rebaseToken);
+  constructor(IRebaseToken _rebaseToken) {
+    i_rebaseToken = _rebaseToken;
   }
 
   receive() external payable { } // fallback function to receive ETH
@@ -31,7 +31,8 @@ contract Vault {
    */
   function deposit() external payable {
     // use the amount of ETH that the user has sent to mint rebase tokens to the user
-    i_rebaseToken.mint(msg.sender, msg.value);
+    uint256 interestRate = i_rebaseToken.getInterestRate();
+    i_rebaseToken.mint(msg.sender, msg.value, interestRate);
     emit Deposit(msg.sender, msg.value);
   }
 

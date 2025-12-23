@@ -95,9 +95,9 @@ contract RebaseToken is ERC20("RebaseToken", "RBTK"), Ownable(msg.sender), Acces
    * @param _to The user address to mint the rebase token to
    * @param _amount The amount of rebase token to mint
    */
-  function mint(address _to, uint256 _amount) external onlyRole(MINT_AND_BURN_ROLE) {
+  function mint(address _to, uint256 _amount, uint256 _userInterestRate) external onlyRole(MINT_AND_BURN_ROLE) {
     _mintAccruedInterest(_to);
-    s_userInterestRate[_to] = s_interestRate;
+    s_userInterestRate[_to] = _userInterestRate;
     _mint(_to, _amount);
   }
 

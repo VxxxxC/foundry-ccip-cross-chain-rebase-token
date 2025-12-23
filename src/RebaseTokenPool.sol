@@ -4,6 +4,7 @@ pragma solidity ^0.8.24;
 
 import { TokenPool } from "@chainlink-ccip/chains/evm/contracts/pools/TokenPool.sol";
 import { Pool } from "@chainlink-ccip/chains/evm/contracts/libraries/Pool.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { RebaseToken } from "./RebaseToken.sol";
 
 contract RebaseTokenPool is TokenPool {
@@ -14,10 +15,25 @@ contract RebaseTokenPool is TokenPool {
   function lockOrBurn(Pool.LockOrBurnInV1 calldata lockOrBurnIn)
     external
     returns (Pool.LockOrBurnOutV1 memory lockOrBurnOut)
-  { }
+  {
+    _validateLockOrBurn(lockOrBurnIn);
+    address receiver = abi.decode(lockOrBurnIn.receiver, (address));
+    uint256 userInterestRate = RebaseToken(address(i_token)).getUserInterestRate(receiver);
+    RebaseToken(address(i_token)).burn(address(this), lockOrBurnIn.amount);
+    lockOrBurnOut = Pool.LockOrBurnOutV1({
+      destTokenAddress: getRemoteToken(lockOrBurnIn.remoteChainSelector),
+      destPoolData: abi.encode(userInterestRate) // encode and send user interest rate to destination chain
+    });
+  }
 
   function releaseOrMint(Pool.ReleaseOrMintInV1 calldata releaseOrMintIn)
     external
     returns (Pool.ReleaseOrMintOutV1 memory)
-  { }
+  {
+    _validateReleaseOrMint(releaseOrMintIn);
+    uint256 userInterestRate = abi.decode(releaseOrMintIn.sourcePoolData, (uint256)); // receive and decode user interest rate from source chain
+    RebaseToken(address(i_token)).mint(releaseOrMintIn.receiver, releaseOrMintIn.amount, userInterestRate);
+
+    releaseOrMintIn = Pool.ReleaseOrMintOutV1({ destinationAmount: releaseOrMintIn.amount });
+  }
 }
