@@ -17,7 +17,7 @@ contract RebaseTokenPool is TokenPool {
 
   function lockOrBurn(
     Pool.LockOrBurnInV1 calldata lockOrBurnIn
-  ) external returns (Pool.LockOrBurnOutV1 memory lockOrBurnOut) {
+  ) public virtual override returns (Pool.LockOrBurnOutV1 memory lockOrBurnOut) {
     _validateLockOrBurn(lockOrBurnIn);
 
     uint256 userInterestRate = RebaseToken(address(i_token)).getUserInterestRate(lockOrBurnIn.originalSender);
@@ -30,12 +30,12 @@ contract RebaseTokenPool is TokenPool {
 
   function releaseOrMint(
     Pool.ReleaseOrMintInV1 calldata releaseOrMintIn
-  ) external returns (Pool.ReleaseOrMintOutV1 memory) {
+  ) public virtual override returns (Pool.ReleaseOrMintOutV1 memory) {
     _validateReleaseOrMint(releaseOrMintIn, releaseOrMintIn.sourceDenominatedAmount);
     uint256 userInterestRate = abi.decode(releaseOrMintIn.sourcePoolData, (uint256)); // receive and decode user interest rate from source chain
     RebaseToken(address(i_token))
       .mint(releaseOrMintIn.receiver, releaseOrMintIn.sourceDenominatedAmount, userInterestRate);
 
-    releaseOrMintIn = Pool.ReleaseOrMintOutV1({ destinationAmount: releaseOrMintIn.sourceDenominatedAmount });
+    return Pool.ReleaseOrMintOutV1({ destinationAmount: releaseOrMintIn.sourceDenominatedAmount });
   }
 }

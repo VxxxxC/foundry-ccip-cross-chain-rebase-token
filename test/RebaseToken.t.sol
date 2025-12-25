@@ -23,7 +23,7 @@ contract RebaseTokenTest is Test {
     vm.startPrank(owner);
     vm.deal(owner, 1e18); // fund the owner with 1 ETH
     rebaseToken = new RebaseToken(); // call RebaseToken constructor
-    vault = new Vault(address(IRebaseToken(address(rebaseToken)))); // pass rebase token address to vault constructor , cast to IRebaseToken interface
+    vault = new Vault(IRebaseToken(address(rebaseToken))); // pass rebase token address to vault constructor , cast to IRebaseToken interface
     rebaseToken.grantMintAndBurnRole(address(vault));
 
     (bool success,) = payable(address(vault)).call{ value: 1e18 }(""); // fund the vault with 1 ETH via fallback
