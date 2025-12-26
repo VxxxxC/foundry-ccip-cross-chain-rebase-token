@@ -13,6 +13,8 @@ import { RegistryModuleOwnerCustom } from "@chainlink-ccip/contracts/tokenAdminR
 import { TokenAdminRegistry } from "@chainlink-ccip/contracts/tokenAdminRegistry/TokenAdminRegistry.sol";
 import { RateLimiter } from "@chainlink-ccip/contracts/libraries/RateLimiter.sol";
 import { TokenPool } from "@chainlink-ccip/contracts/pools/TokenPool.sol";
+import { Client } from "@chainlink-ccip/contracts/libraries/Client.sol";
+import { IRouterClient } from "@chainlink-ccip/contracts/interfaces/IRouterClient.sol";
 
 contract CrossChain is Test {
   uint256 sepoliaFork;
@@ -31,6 +33,7 @@ contract CrossChain is Test {
   Register.NetworkDetails arbSepoliaNetworkDetails;
 
   address public owner = makeAddr("owner");
+  address public user = makeAddr("user");
 
   function setUp() public {
     sepoliaFork = vm.createSelectFork(vm.rpcUrl("sepolia-eth")); // Create and select a fork of Sepolia
@@ -113,5 +116,71 @@ contract CrossChain is Test {
       inboundRateLimiterConfig: RateLimiter.Config({ isEnabled: false, capacity: 0, rate: 0 })
     });
     TokenPool(_localPool).applyChainUpdates(new uint64[](0), chainsToAdd);
+  }
+
+  function bridgeToken(
+    uint256 _amountToBridge,
+    uint256 _localFork,
+    uint256 _remoteFork,
+    Register.NetworkDetails memory _localNetworkDetails,
+    Register.NetworkDetails memory _remoteNetworkDetails,
+    RebaseToken _localRebaseToken,
+    RebaseToken _remoteRebaseToken
+  ) public {
+    vm.selectFork(_localFork); // where the initial Fork is selected and start to cross-chain
+    vm.startPrank(user);
+
+    // Prepare token amounts to bridge
+    Client.EVMTokenAmount[] memory tokenAmount = new Client.EVMTokenAmount[](1);
+    tokenAmount[0] = Client.EVMTokenAmount({ token: address(_localRebaseToken), amount: _amountToBridge });
+
+    // Prepare CCIP message
+    Client.EVM2AnyMessage memory message = Client.EVM2AnyMessage({
+       receiver: abi.encode(user),
+       data: "",
+       tokenAmounts: tokenAmount,
+       feeToken: _localNetworkDetails.linkAddress,
+       extraArgs: Client._argsToBytes(Client.EVMExtraArgsV1({
+        gasLimit: 0
+       }))
+    });
+    uint256 fee = IRouterClient(_localNetworkDetails.routerAddress).getFee(_remoteNetworkDetails.chainSelector, message);
+
+    // Request Link for fee from the local simulator faucet
+    ccipLocalSimulatorFork.requestLinkFromFaucet(user, fee);
+
+    // Approve pay the Link for fee and RebaseToken for bridging
+    vm.startPrank(user);
+    IERC20(_localNetworkDetails.linkAddress).approve(_localNetworkDetails.routerAddress, fee);
+    
+    // Approve RebaseToken transfer
+    vm.startPrank(user);
+    IERC20(address(_localRebaseToken)).approve(_localNetworkDetails.routerAddress, _amountToBridge);
+    
+    uint256 localTokenBefore = _localRebaseToken.balanceOf(user);
+    
+    // Send the cross-chain message
+    vm.startPrank(user);
+    IRouterClient(_localNetworkDetails.routerAddress).ccipSend(_remoteNetworkDetails.chainSelector, message);
+    
+    uint256 localTokenAfter = _localRebaseToken.balanceOf(user);
+
+    assertEq(localTokenBefore - localTokenAfter, _amountToBridge, "Local token balance did not decrease correctly after bridging");
+    uint256 localUserInterestRate = _localRebaseToken.getUserInterestRate(user);
+
+    vm.selectFork(_remoteFork); // Switch to the remote fork to check the bridged tokens
+    vm.warp(block.timestamp + 1 hours); // Advance time to allow message processing
+
+    uint256 remoteBalanceBefore = _remoteRebaseToken.balanceOf(user);
+    // looks for `CCIPSendRequest` and `CCIPMessageSent` events after sent cross-chain message `ccipSend`
+    ccipLocalSimulatorFork.switchChainAndRouteMessage(_remoteFork);
+    uint256 remoteBalanceAfter = _remoteRebaseToken.balanceOf(user);
+    assertEq(remoteBalanceAfter, remoteBalanceBefore + _amountToBridge, "Remote token balance did not increase correctly after bridging");
+    uint256 remoteUserInterestRate = _remoteRebaseToken.getUserInterestRate(user);
+    assertEq(localUserInterestRate, remoteUserInterestRate, "Interest rates do not match after bridging");
+    
+    
+    
+    vm.stopPrank();
   }
 }
