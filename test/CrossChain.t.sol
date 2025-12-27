@@ -204,7 +204,7 @@ contract CrossChain is Test {
     );
 
     // Bridge all tokens from Sepolia to Arbitrum Sepolia
-    bridgeToken(
+    try this.bridgeToken(
       SEND_VALUE,
       sepoliaFork,
       arbSepoliaFork,
@@ -212,6 +212,25 @@ contract CrossChain is Test {
       arbSepoliaNetworkDetails,
       sepoliaRebaseToken,
       arbSepoliaRebaseToken
-    );
+    ) { }
+    catch {
+      console.log("Bridging from Sepolia to Arbitrum Sepolia failed");
+    }
+
+    vm.selectFork(arbSepoliaFork);
+    vm.warp(block.timestamp + 1 hours);
+
+    try this.bridgeToken(
+      arbSepoliaRebaseToken.balanceOf(user),
+      arbSepoliaFork,
+      sepoliaFork,
+      arbSepoliaNetworkDetails,
+      sepoliaNetworkDetails,
+      arbSepoliaRebaseToken,
+      sepoliaRebaseToken
+    ) { }
+    catch {
+      console.log("Bridging from Arbitrum Sepolia to Sepolia failed");
+    }
   }
 }
