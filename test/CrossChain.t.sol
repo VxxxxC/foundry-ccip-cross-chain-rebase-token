@@ -35,6 +35,8 @@ contract CrossChain is Test {
   address public owner = makeAddr("owner");
   address public user = makeAddr("user");
 
+  uint256 public constant SEND_VALUE = 1e5; // 1e5 = 0.0001 ETH
+
   function setUp() public {
     sepoliaFork = vm.createSelectFork(vm.rpcUrl("sepolia-eth")); // Create and select a fork of Sepolia
     arbSepoliaFork = vm.createFork(vm.rpcUrl("arb-sepolia")); // Create a fork of Arbitrum Sepolia, but not yet selected
@@ -43,6 +45,7 @@ contract CrossChain is Test {
 
     // *NOTE 1. Deploy RebaseToken and config on Sepolia
     sepoliaNetworkDetails = ccipLocalSimulatorFork.getNetworkDetails(block.chainid);
+    vm.startPrank(owner);
     sepoliaRebaseToken = new RebaseToken();
     vault = new Vault(IRebaseToken(address(sepoliaRebaseToken)));
     sepoliaPool = new RebaseTokenPool(
@@ -104,7 +107,7 @@ contract CrossChain is Test {
     address remoteTokenAddress
   ) public {
     vm.selectFork(_fork);
-    vm.prank(owner);
+    vm.startPrank(owner);
     bytes[] memory remotePoolAddresses = new bytes[](1);
     remotePoolAddresses[0] = abi.encode(remotePool);
     TokenPool.ChainUpdate[] memory chainsToAdd = new TokenPool.ChainUpdate[](1);
@@ -136,13 +139,11 @@ contract CrossChain is Test {
 
     // Prepare CCIP message
     Client.EVM2AnyMessage memory message = Client.EVM2AnyMessage({
-       receiver: abi.encode(user),
-       data: "",
-       tokenAmounts: tokenAmount,
-       feeToken: _localNetworkDetails.linkAddress,
-       extraArgs: Client._argsToBytes(Client.EVMExtraArgsV1({
-        gasLimit: 0
-       }))
+      receiver: abi.encode(user),
+      data: "",
+      tokenAmounts: tokenAmount,
+      feeToken: _localNetworkDetails.linkAddress,
+      extraArgs: Client._argsToBytes(Client.GenericExtraArgsV2({ gasLimit: 500_000, allowOutOfOrderExecution: false }))
     });
     uint256 fee = IRouterClient(_localNetworkDetails.routerAddress).getFee(_remoteNetworkDetails.chainSelector, message);
 
@@ -152,35 +153,65 @@ contract CrossChain is Test {
     // Approve pay the Link for fee and RebaseToken for bridging
     vm.startPrank(user);
     IERC20(_localNetworkDetails.linkAddress).approve(_localNetworkDetails.routerAddress, fee);
-    
+
     // Approve RebaseToken transfer
     vm.startPrank(user);
     IERC20(address(_localRebaseToken)).approve(_localNetworkDetails.routerAddress, _amountToBridge);
-    
+
     uint256 localTokenBefore = _localRebaseToken.balanceOf(user);
-    
+
     // Send the cross-chain message
     vm.startPrank(user);
     IRouterClient(_localNetworkDetails.routerAddress).ccipSend(_remoteNetworkDetails.chainSelector, message);
-    
+
     uint256 localTokenAfter = _localRebaseToken.balanceOf(user);
 
-    assertEq(localTokenBefore - localTokenAfter, _amountToBridge, "Local token balance did not decrease correctly after bridging");
+    assertEq(
+      localTokenBefore - localTokenAfter,
+      _amountToBridge,
+      "Local token balance did not decrease correctly after bridging"
+    );
     uint256 localUserInterestRate = _localRebaseToken.getUserInterestRate(user);
 
-    vm.selectFork(_remoteFork); // Switch to the remote fork to check the bridged tokens
-    vm.warp(block.timestamp + 1 hours); // Advance time to allow message processing
-
-    uint256 remoteBalanceBefore = _remoteRebaseToken.balanceOf(user);
+    // ! WARN : remote account balance must be `vm.selectFort` switched to remote fork & `switchChainAndRouteMessage` first, then get the `balanceOf()` , otherwise will Revert EVM error
     // looks for `CCIPSendRequest` and `CCIPMessageSent` events after sent cross-chain message `ccipSend`
     ccipLocalSimulatorFork.switchChainAndRouteMessage(_remoteFork);
-    uint256 remoteBalanceAfter = _remoteRebaseToken.balanceOf(user);
-    assertEq(remoteBalanceAfter, remoteBalanceBefore + _amountToBridge, "Remote token balance did not increase correctly after bridging");
+    vm.selectFork(_remoteFork); // Switch to the remote fork to check the bridged tokens
+    uint256 remoteBalanceBeforeInterested = _remoteRebaseToken.balanceOf(user);
+    vm.warp(block.timestamp + 1 hours); // Advance time to allow message processing
+    uint256 remoteBalanceAfterInterested = _remoteRebaseToken.balanceOf(user);
+
+    uint256 remoteBalanceInterestedOnly = remoteBalanceAfterInterested - remoteBalanceBeforeInterested;
+
+    assertEq(
+      remoteBalanceAfterInterested,
+      (_amountToBridge + remoteBalanceInterestedOnly),
+      "Remote token balance did not increase correctly after bridging"
+    );
     uint256 remoteUserInterestRate = _remoteRebaseToken.getUserInterestRate(user);
     assertEq(localUserInterestRate, remoteUserInterestRate, "Interest rates do not match after bridging");
-    
-    
-    
+
     vm.stopPrank();
+  }
+
+  function testBridgeAllTokens() public {
+    vm.selectFork(sepoliaFork);
+    vm.deal(user, SEND_VALUE);
+    vm.startPrank(user);
+    Vault(payable(address(vault))).deposit{ value: SEND_VALUE }();
+    assertEq(
+      sepoliaRebaseToken.balanceOf(user), SEND_VALUE, "User did not receive correct amount of RebaseToken after deposit"
+    );
+
+    // Bridge all tokens from Sepolia to Arbitrum Sepolia
+    bridgeToken(
+      SEND_VALUE,
+      sepoliaFork,
+      arbSepoliaFork,
+      sepoliaNetworkDetails,
+      arbSepoliaNetworkDetails,
+      sepoliaRebaseToken,
+      arbSepoliaRebaseToken
+    );
   }
 }
