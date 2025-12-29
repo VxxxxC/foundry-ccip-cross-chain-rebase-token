@@ -21,15 +21,17 @@ SEPOLIA_CHAIN_SELECTOR="16015286601757825753"
 SEPOLIA_LINK_ADDRESS="0x779877A7B0D9E8603169DdbD7836e478b4624789"
 
 # Compile and deploy the Rebase Token contract
+forge clean
+foundryup-zksync
 source .env
 forge build --zksync
 echo "Compiling and deploying the Rebase Token contract on ZKsync..."
-ZKSYNC_REBASE_TOKEN_ADDRESS=$(forge create src/RebaseToken.sol:RebaseToken --rpc-url ${ZKSYNC_SEPOLIA_RPC_URL} --account default_test_wallet --legacy --zksync | awk '/Deployed to:/ {print $3}')
+ZKSYNC_REBASE_TOKEN_ADDRESS=$(forge create src/RebaseToken.sol:RebaseToken --rpc-url ${ZKSYNC_SEPOLIA_RPC_URL} --account default_test_wallet --legacy --zksync --broadcast | awk '/Deployed to:/ {print $3}')
 echo "ZKsync rebase token address: $ZKSYNC_REBASE_TOKEN_ADDRESS"
 
 # Compile and deploy the pool contract
 echo "Compiling and deploying the pool contract on ZKsync..."
-ZKSYNC_POOL_ADDRESS=$(forge create src/RebaseTokenPool.sol:RebaseTokenPool --rpc-url ${ZKSYNC_SEPOLIA_RPC_URL} --account default_test_wallet --legacy --zksync --constructor-args ${ZKSYNC_REBASE_TOKEN_ADDRESS} [] ${ZKSYNC_RNM_PROXY_ADDRESS} ${ZKSYNC_ROUTER} | awk '/Deployed to:/ {print $3}')
+ZKSYNC_POOL_ADDRESS=$(forge create src/RebaseTokenPool.sol:RebaseTokenPool --rpc-url ${ZKSYNC_SEPOLIA_RPC_URL} --account default_test_wallet --legacy --zksync --broadcast --constructor-args ${ZKSYNC_REBASE_TOKEN_ADDRESS} [] ${ZKSYNC_RNM_PROXY_ADDRESS} ${ZKSYNC_ROUTER} | awk '/Deployed to:/ {print $3}')
 echo "Pool address: $ZKSYNC_POOL_ADDRESS"
 
 # Set the permissions for the pool contract

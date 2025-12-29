@@ -2,7 +2,7 @@
 
 pragma solidity ^0.8.24;
 
-import { Script } from "forge-std/Script.sol";
+import { Script, console } from "forge-std/Script.sol";
 import { Vault } from "../src/Vault.sol";
 import { IRebaseToken } from "../src/interfaces/IRebaseToken.sol";
 import { RebaseToken } from "../src/RebaseToken.sol";
@@ -26,6 +26,7 @@ contract TokenAndPoolDeployer is Script {
       .registerAdminViaOwner(address(rebaseToken));
     TokenAdminRegistry(networkDetails.tokenAdminRegistryAddress).acceptAdminRole(address(rebaseToken));
     TokenAdminRegistry(networkDetails.tokenAdminRegistryAddress).setPool(address(rebaseToken), address(rebaseTokenPool));
+
 
     vm.stopBroadcast();
   }
