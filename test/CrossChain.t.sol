@@ -173,9 +173,8 @@ contract CrossChain is Test {
     );
     uint256 localUserInterestRate = _localRebaseToken.getUserInterestRate(user);
 
-    // ! WARN : remote account balance must be `vm.selectFort` switched to remote fork & `switchChainAndRouteMessage` first, then get the `balanceOf()` , otherwise will Revert EVM error
-    // looks for `CCIPSendRequest` and `CCIPMessageSent` events after sent cross-chain message `ccipSend`
-    ccipLocalSimulatorFork.switchChainAndRouteMessage(_remoteFork);
+    // WARN : remote account balance must be `vm.selectFork` switched to remote fork & `switchChainAndRouteMessage` first, then get the `balanceOf()` , otherwise will Revert EVM error
+    ccipLocalSimulatorFork.switchChainAndRouteMessage(_remoteFork); // looks for `CCIPSendRequest` and `CCIPMessageSent` events after sent cross-chain message `ccipSend`
     vm.selectFork(_remoteFork); // Switch to the remote fork to check the bridged tokens
     uint256 remoteBalanceBeforeInterested = _remoteRebaseToken.balanceOf(user);
     vm.warp(block.timestamp + 1 hours); // Advance time to allow message processing
