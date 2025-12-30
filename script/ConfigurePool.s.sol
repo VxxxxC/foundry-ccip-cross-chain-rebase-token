@@ -6,7 +6,7 @@ import { Script } from "forge-std/Script.sol";
 import { TokenPool } from "@chainlink-ccip/contracts/pools/TokenPool.sol";
 import { RateLimiter } from "@chainlink-ccip/contracts/libraries/RateLimiter.sol";
 
-contract ConfigurePool is Script {
+contract ConfigurePoolScript is Script {
   function run(
     address localPool,
     uint64 remoteChainSelector,
