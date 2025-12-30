@@ -27,7 +27,6 @@ contract TokenAndPoolDeployer is Script {
     TokenAdminRegistry(networkDetails.tokenAdminRegistryAddress).acceptAdminRole(address(rebaseToken));
     TokenAdminRegistry(networkDetails.tokenAdminRegistryAddress).setPool(address(rebaseToken), address(rebaseTokenPool));
 
-
     vm.stopBroadcast();
   }
 }
@@ -42,3 +41,24 @@ contract VaultDeployer is Script {
     vm.stopBroadcast();
   }
 }
+
+contract SetPermission is Script {
+  function grantRole(
+    address token,
+    address pool
+  ) public {
+    vm.startBroadcast();
+
+    vm.stopBroadcast();
+  }
+
+  function setAdminAndPool(
+    address token,
+    address pool
+  ) public {
+    vm.startBroadcast();
+
+    vm.stopBroadcast();
+  }
+}
+
