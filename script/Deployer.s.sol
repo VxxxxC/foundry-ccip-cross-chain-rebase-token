@@ -42,23 +42,23 @@ contract VaultDeployer is Script {
   }
 }
 
-contract SetPermission is Script {
-  function grantRole(
-    address token,
-    address pool
-  ) public {
-    vm.startBroadcast();
+// contract SetPermission is Script {
+//   function grantRole(
+//     address token,
+//     address pool
+//   ) public {
+//     vm.startBroadcast();
 
-    vm.stopBroadcast();
-  }
+//     vm.stopBroadcast();
+//   }
 
-  function setAdminAndPool(
-    address token,
-    address pool
-  ) public {
-    vm.startBroadcast();
+//   function setAdminAndPool(
+//     address token,
+//     address pool
+//   ) public {
+//     vm.startBroadcast();
 
-    vm.stopBroadcast();
-  }
-}
+//     vm.stopBroadcast();
+//   }
+// }
 

@@ -7,15 +7,26 @@ import { IRouterClient } from "@chainlink-ccip/contracts/interfaces/IRouterClien
 import { Client } from "@chainlink-ccip/contracts/libraries/Client.sol";
 import { IERC20 } from "@openzeppelin/contracts@4.8.3/token/ERC20/IERC20.sol";
 
-contract BridgeTokens is Script {
+contract BridgeTokensScript is Script {
+
+  event TokensTransferred(
+    bytes32 indexed messageId,
+    uint64 indexed destinationChainSelector,
+    address receiver,
+    address token,
+    uint256 tokenAmount,
+    address feeToken,
+    uint256 fees
+  );
+
   function run(
-    address localTokenAddress,
-    uint256 transferAmount,
     address receiverAddress,
     uint64 destinationChainSelector,
-    address routerAddress,
-    address linkTokenAddress
-  ) public {
+    address localTokenAddress,
+    uint256 transferAmount,
+    address linkTokenAddress,
+    address routerAddress
+  ) public returns (bytes32 messageId){
     vm.startBroadcast();
     Client.EVMTokenAmount[] memory tokenAmounts = new Client.EVMTokenAmount[](1);
     tokenAmounts[0] = Client.EVMTokenAmount({ token: localTokenAddress, amount: transferAmount });
@@ -30,7 +41,8 @@ contract BridgeTokens is Script {
     uint256 ccipFee = IRouterClient(routerAddress).getFee(destinationChainSelector, message);
     IERC20(linkTokenAddress).approve(routerAddress, ccipFee);
     IERC20(localTokenAddress).approve(routerAddress, transferAmount);
-    IRouterClient(routerAddress).ccipSend(destinationChainSelector, message);
+    messageId = IRouterClient(routerAddress).ccipSend(destinationChainSelector, message);
+    emit TokensTransferred(messageId, destinationChainSelector, receiverAddress, localTokenAddress, transferAmount, linkTokenAddress, ccipFee);
     vm.stopBroadcast();
   }
 }
